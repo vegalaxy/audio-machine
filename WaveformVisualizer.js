@@ -119,6 +119,13 @@ export var WaveformVisualizer = /*#__PURE__*/ function() {
                     this.dataArray.set(newArray);
                 }
                 
+                // Calculate average amplitude from the audio data
+                var avgAmplitude = 0;
+                for (var i = 0; i < this.dataArray.length; i++) {
+                    avgAmplitude += Math.abs(this.dataArray[i]);
+                }
+                avgAmplitude /= this.dataArray.length;
+                
                 // Audio-reactive glow
                 this.uniforms.glowIntensity.value = 1.0 + avgAmplitude * 2.0;
                 var positions = this.mesh.geometry.attributes.position.array;
