@@ -41,7 +41,9 @@ export var WaveformVisualizer = /*#__PURE__*/ function() {
         this.width = canvasWidth * 0.8; // Occupy 80% of the screen width
         this.height = 450; // The vertical amplitude of the wave
         this.yPosition = 0; // The vertical center of the wave
-        this.thickness = 30.0; // The thickness of the line mesh
+        this.baseThickness = 5.0; // Minimum thickness when inactive
+        this.maxThickness = 60.0; // Maximum thickness when fully active
+        this.currentThickness = this.baseThickness; // Current dynamic thickness
         this.currentColor = new THREE.Color('#00ffff'); // Start with cyberpunk cyan
         this.targetColor = new THREE.Color('#00ffff');
         this.uniforms = {
@@ -154,11 +156,16 @@ export var WaveformVisualizer = /*#__PURE__*/ function() {
                 
                 // Audio-reactive glow
                 this.uniforms.glowIntensity.value = 1.0 + avgAmplitude * 2.0;
+                
+                // Dynamic thickness based on audio activity
+                var targetThickness = this.baseThickness + (avgAmplitude * 10) * (this.maxThickness - this.baseThickness);
+                // Smooth the thickness changes
+                this.currentThickness = this.currentThickness * 0.85 + targetThickness * 0.15;
                 var positions = this.mesh.geometry.attributes.position.array;
                 var uvs = this.mesh.geometry.attributes.uv.array;
                 var startX = -this.width / 2;
                 var xStep = this.width / (this.bufferLength - 1);
-                var halfThickness = this.thickness / 2;
+                var halfThickness = this.currentThickness / 2;
                 for(var i = 0; i < this.bufferLength; i++){
                     // Apply exponential smoothing
                     this.smoothedDataArray[i] = this.smoothingFactor * this.dataArray[i] + (1 - this.smoothingFactor) * this.smoothedDataArray[i];
