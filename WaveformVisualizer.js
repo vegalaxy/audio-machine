@@ -42,7 +42,7 @@ export var WaveformVisualizer = /*#__PURE__*/ function() {
         this.height = 450; // The vertical amplitude of the wave
         this.yPosition = 0; // The vertical center of the wave
         this.thickness = 30.0; // The thickness of the line mesh
-        this.currentColor = new THREE.Color('#00ffff'); // Cyberpunk cyan
+        this.currentColor = new THREE.Color('#00ffff'); // Start with cyberpunk cyan
         this.targetColor = new THREE.Color('#00ffff');
         this.uniforms = {
             solidColor: {
@@ -51,6 +51,19 @@ export var WaveformVisualizer = /*#__PURE__*/ function() {
             time: { value: 0 },
             glowIntensity: { value: 1.0 }
         };
+        
+        // Cyberpunk color palette
+        this.cyberpunkColors = [
+            '#00ffff', // Cyan
+            '#ff0080', // Hot pink
+            '#8000ff', // Purple
+            '#00ff80', // Neon green
+            '#ff8000', // Orange
+            '#0080ff', // Electric blue
+            '#ff0040', // Neon red
+            '#40ff00'  // Lime green
+        ];
+        this.colorIndex = 0;
         this.time = 0;
         this._createVisualizer();
     }
@@ -126,6 +139,19 @@ export var WaveformVisualizer = /*#__PURE__*/ function() {
                 }
                 avgAmplitude /= this.dataArray.length;
                 
+                // Auto-cycle through cyberpunk colors when there's low audio activity
+                if (avgAmplitude < 0.01) {
+                    // Slowly cycle through colors when inactive
+                    if (Math.floor(this.time * 0.5) % 120 === 0) { // Change every 2 seconds
+                        this.colorIndex = (this.colorIndex + 1) % this.cyberpunkColors.length;
+                        this.targetColor.set(this.cyberpunkColors[this.colorIndex]);
+                    }
+                } else {
+                    // Reactive color changes based on audio when active
+                    const colorIndex = Math.floor((avgAmplitude * 10 + this.time * 0.1) % this.cyberpunkColors.length);
+                    this.targetColor.set(this.cyberpunkColors[colorIndex]);
+                }
+                
                 // Audio-reactive glow
                 this.uniforms.glowIntensity.value = 1.0 + avgAmplitude * 2.0;
                 var positions = this.mesh.geometry.attributes.position.array;
@@ -161,11 +187,10 @@ export var WaveformVisualizer = /*#__PURE__*/ function() {
         {
             key: "updateColor",
             value: function updateColor(newColor) {
-                if (this.uniforms) {
-                    // Cycle through cyberpunk colors based on audio
-                    const cyberpunkColors = ['#00ffff', '#ff0080', '#8000ff', '#00ff80', '#ff8000'];
-                    const colorIndex = Math.floor(Math.random() * cyberpunkColors.length);
-                    this.targetColor.set(cyberpunkColors[colorIndex]);
+                // Manual color update - cycle to next cyberpunk color
+                if (this.cyberpunkColors) {
+                    this.colorIndex = (this.colorIndex + 1) % this.cyberpunkColors.length;
+                    this.targetColor.set(this.cyberpunkColors[this.colorIndex]);
                 }
             }
         },
