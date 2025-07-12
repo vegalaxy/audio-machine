@@ -42,13 +42,16 @@ export var WaveformVisualizer = /*#__PURE__*/ function() {
         this.height = 450; // The vertical amplitude of the wave
         this.yPosition = 0; // The vertical center of the wave
         this.thickness = 30.0; // The thickness of the line mesh
-        this.currentColor = new THREE.Color('#7B4394');
-        this.targetColor = new THREE.Color('#7B4394');
+        this.currentColor = new THREE.Color('#00ffff'); // Cyberpunk cyan
+        this.targetColor = new THREE.Color('#00ffff');
         this.uniforms = {
             solidColor: {
                 value: this.currentColor
-            }
+            },
+            time: { value: 0 },
+            glowIntensity: { value: 1.0 }
         };
+        this.time = 0;
         this._createVisualizer();
     }
     _create_class(WaveformVisualizer, [
@@ -58,9 +61,27 @@ export var WaveformVisualizer = /*#__PURE__*/ function() {
                 var material = new THREE.ShaderMaterial({
                     uniforms: this.uniforms,
                     vertexShader: "\n                varying vec2 vUv;\n                void main() {\n                    vUv = uv;\n                    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);\n                }\n            ",
-                    fragmentShader: "\n                uniform vec3 solidColor;\n                void main() {\n                    gl_FragColor = vec4(solidColor, 0.9);\n                }\n            ",
+                    fragmentShader: `
+                        uniform vec3 solidColor;
+                        uniform float time;
+                        uniform float glowIntensity;
+                        varying vec2 vUv;
+                        
+                        void main() {
+                            // Cyberpunk glow effect
+                            float glow = sin(time * 3.0 + vUv.x * 10.0) * 0.3 + 0.7;
+                            vec3 glowColor = solidColor * glow * glowIntensity;
+                            
+                            // Add edge glow
+                            float edgeGlow = 1.0 - abs(vUv.y - 0.5) * 2.0;
+                            edgeGlow = pow(edgeGlow, 2.0);
+                            
+                            gl_FragColor = vec4(glowColor + edgeGlow * solidColor * 0.5, 0.9);
+                        }
+                    `,
                     transparent: true,
-                    side: THREE.DoubleSide
+                    side: THREE.DoubleSide,
+                    blending: THREE.AdditiveBlending
                 });
                 var geometry = new THREE.BufferGeometry();
                 var positions = new Float32Array(this.bufferLength * 2 * 3);
@@ -87,12 +108,19 @@ export var WaveformVisualizer = /*#__PURE__*/ function() {
             key: "update",
             value: function update() {
                 if (!this.analyser || !this.mesh) return;
+                
+                // Update time for shader animation
+                this.time += 0.016; // Assuming 60fps
+                this.uniforms.time.value = this.time;
                 // Smoothly interpolate the current color towards the target color
                 this.currentColor.lerp(this.targetColor, 0.05);
                 var newArray = this.analyser.getValue();
                 if (_instanceof(newArray, Float32Array)) {
                     this.dataArray.set(newArray);
                 }
+                
+                // Audio-reactive glow
+                this.uniforms.glowIntensity.value = 1.0 + avgAmplitude * 2.0;
                 var positions = this.mesh.geometry.attributes.position.array;
                 var uvs = this.mesh.geometry.attributes.uv.array;
                 var startX = -this.width / 2;
@@ -127,7 +155,10 @@ export var WaveformVisualizer = /*#__PURE__*/ function() {
             key: "updateColor",
             value: function updateColor(newColor) {
                 if (this.uniforms) {
-                    this.targetColor.set(newColor);
+                    // Cycle through cyberpunk colors based on audio
+                    const cyberpunkColors = ['#00ffff', '#ff0080', '#8000ff', '#00ff80', '#ff8000'];
+                    const colorIndex = Math.floor(Math.random() * cyberpunkColors.length);
+                    this.targetColor.set(cyberpunkColors[colorIndex]);
                 }
             }
         },
